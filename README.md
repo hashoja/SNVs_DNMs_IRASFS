@@ -18,8 +18,7 @@ The steps are:
 2. Retrieve and import the list of sites to be validated from each callset.
 3. Execute the processing of validation sites..
 4. Apply filtering procedures to refine the results.
-5. Filtering the sites and detecting mendelian violation on the standard vcf file.  
-6. Filtering *de novo* mutation candidates, estimating the number of callable sites on the bp-resolution vcf file and calculating mutation rate.
+   
 
 ## Requirements 
 
