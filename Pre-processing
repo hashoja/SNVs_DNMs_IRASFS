@@ -1,0 +1,317 @@
+####################
+Load the libraries
+####################
+
+
+library(plotly)
+library(ggalt)
+library(plotly)
+library(dplyr)
+library(clipr)
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(cowplot)
+library(data.table)
+library("regioneR") 
+library(clipr)
+library("plyranges")
+library("karyoploteR") 
+
+####################
+Import denovogear & GATK candiate DNMs 
+####################
+# Importing validation data from De Novo Gear (DNG) and GATK callsets
+Oct_dng_validation <- read.table(
+  "~/nfs/projects/2020_IRAS_validation/11_manual_validation/original_callset/dng/master_DNG_list.txt",
+  header = FALSE, sep = "\t", stringsAsFactors = FALSE
+)
+
+Oct_gatk_validation <- read.table(
+  "~/nfs/projects/2020_IRAS_validation/11_manual_validation/original_callset/gatk/master_GATK_list.txt",
+  header = FALSE, sep = "\t", stringsAsFactors = FALSE
+)
+
+# Naming columns for clarity
+colnames(Oct_dng_validation) <- c("CHROM", "POS", "REF", "ALT", "sample", "TYPE")
+colnames(Oct_gatk_validation) <- c("CHROM", "POS", "REF", "ALT", "sample", "TYPE")
+
+# Data cleaning and manipulation
+Oct_dng_validation$ALT <- gsub(Oct_dng_validation$ALT, pattern = ",<\\*>", replacement = "")
+Oct_dng_validation <- Oct_dng_validation %>% tidyr::separate_rows(ALT, sep = ",") %>% distinct()
+
+# Adding call method information
+Oct_dng_validation$call_method <- "denovogear"
+Oct_gatk_validation$call_method <- "GATK"
+
+# Merging DNG and GATK validation datasets
+Oct_validation <- dplyr::full_join(Oct_gatk_validation, Oct_dng_validation)
+
+# Creating a new column 'LOCUS' as a combination of CHROM and POS
+Oct_validation <- Oct_validation %>% mutate(LOCUS = paste0(CHROM, ":", POS))
+
+# Converting 'sample' column to character type
+Oct_validation$sample <- as.character(Oct_validation$sample)
+
+# Reading genome coverage data for somatic, X, and Y chromosomes
+Oct_genome_coverage_somatic <- read.table(
+  "/mnt/nfs1/mmeier/data/2020_IRAS_validation/depth_calculations.min.10.reads.mq.20/summary.somatic.txt"
+)
+
+Oct_genome_coverage_x <- read.table(
+  "/mnt/nfs1/mmeier/data/2020_IRAS_validation/depth_calculations.min.10.reads.mq.20/summary.x.txt"
+)
+
+Oct_genome_coverage_y <- read.table(
+  "/mnt/nfs1/mmeier/data/2020_IRAS_validation/depth_calculations.min.10.reads.mq.20/summary.y.txt"
+)
+
+# Naming columns for clarity
+colnames(Oct_genome_coverage_somatic) <- c("sample", "somatic_coverage_no_repeats", "somatic_coverage_incl_repeats")
+colnames(Oct_genome_coverage_x) <- c("sample", "x_coverage_no_repeats", "x_coverage_incl_repeats")
+colnames(Oct_genome_coverage_y) <- c("sample", "y_coverage_no_repeats", "y_coverage_incl_repeats")
+
+# Combining genome coverage data for somatic, X, and Y chromosomes
+Oct_genome_coverage_all <- Oct_genome_coverage_somatic %>%
+  dplyr::left_join(Oct_genome_coverage_x, by = "sample") %>%
+  dplyr::left_join(Oct_genome_coverage_y, by = "sample") %>%
+  dplyr::mutate(
+    callable_regions = if_else(
+      condition = y_coverage_no_repeats > 1000000,
+      true = (somatic_coverage_no_repeats * 2) + x_coverage_no_repeats + y_coverage_no_repeats,  # Male
+      false = (somatic_coverage_no_repeats * 2) + (x_coverage_no_repeats * 2)  # Female
+    )
+  ) %>%
+  dplyr::mutate(
+    calculated_sex = if_else(
+      condition = y_coverage_no_repeats > 1000000,
+      true = "male",
+      false = "female"
+    )
+  )
+
+# Converting 'sample' column to character type
+Oct_genome_coverage_all$sample <- as.character(Oct_genome_coverage_all$sample)
+
+# Reading in sample data from a file
+Oct_Up_IRAS_sampledata <- read.table(
+  "~/nfs/projects/2020_IRAS_validation/habib_manual_validation/sampledata_updated_HS.txt",
+  header = TRUE, sep = "\t", stringsAsFactors = FALSE
+)
+
+# Rounding paternal age to 1 decimal place
+Oct_Up_IRAS_sampledata$paternal_age_at_birth <- round(
+  as.numeric(Oct_Up_IRAS_sampledata$paternal_age_at_birth), digits = 1
+)
+
+# Converting 'sample' column to character type
+Oct_Up_IRAS_sampledata$sample <- as.character(Oct_Up_IRAS_sampledata$sample)
+
+# Creating new family levels and assigning them to the 'family' column
+Oct_family_new_levels <- Oct_Up_IRAS_sampledata %>%
+  arrange(smoking_father) %>%
+  distinct(family)
+
+levels(Oct_Up_IRAS_sampledata$family) <- as.vector(Oct_family_new_levels$family)
+
+# Displaying the structure of the updated sample data
+str(Oct_Up_IRAS_sampledata)
+
+# Performing a left join to add metadata to the validation data
+Oct_lfJoin_Up_validation <- dplyr::left_join(Oct_validation, Oct_Up_IRAS_sampledata)
+
+# Read in pileup data for validation regions with the NEW and corrected Targeted sequences (TS)
+Oct_allele_depths <- read.table(
+  "~/nfs/projects/2020_IRAS_validation/habib_manual_validation/habib_merged.validation_positions.table",
+  header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
+)
+
+# Transform allele depths data to long format
+Oct_allele_depths_long <- Oct_allele_depths %>%
+  pivot_longer(
+    cols = c(ends_with("DP"), ends_with("AD"), ends_with("ADF"), ends_with("ADR")),
+    names_to = c("sample", ".value"),
+    names_pattern = "([0-9]+)\\.(.*)"
+  ) %>%
+  separate(AD, c("AD1", "AD2", "AD3", "AD4")) %>%
+  mutate(AAF = as.numeric(AD2) / as.numeric(DP)) %>%
+  mutate(LOCUS = paste0(CHROM, ":", POS))
+
+# Annotate allele depths by joining with sample metadata
+Oct_Up_allele_depths_long_annotated <- dplyr::left_join(
+  Oct_allele_depths_long,
+  Oct_Up_IRAS_sampledata,
+  by = "sample"
+)
+
+#######################
+Filter Results:
+#######################
+# Filter the results to identify and exclude sites where the allele fraction of either the mother or father exceeds 10%.
+
+# Identify loci where paternal AAF > 0.1
+Oct_Up_remove_dad <- Oct_Up_allele_depths_long_annotated[which(
+  Oct_Up_allele_depths_long_annotated$family_member == "father" &
+  Oct_Up_allele_depths_long_annotated$AAF > 0.1
+), ]$LOCUS
+
+# Identify loci where paternal AAF > 0.05
+Oct_Up_remove_dad_AAFgt0.05 <- Oct_Up_allele_depths_long_annotated[which(
+  Oct_Up_allele_depths_long_annotated$family_member == "father" &
+  Oct_Up_allele_depths_long_annotated$AAF > 0.05
+), ]$LOCUS
+
+# Identify loci where maternal AAF > 0.1
+Oct_Up_remove_mom <- Oct_Up_allele_depths_long_annotated[which(
+  Oct_Up_allele_depths_long_annotated$family_member == "mother" &
+  Oct_Up_allele_depths_long_annotated$AAF > 0.1
+), ]$LOCUS
+
+# Identify loci where maternal AAF > 0.05
+Oct_Up_remove_mom_AAFgt0.05 <- Oct_Up_allele_depths_long_annotated[which(
+  Oct_Up_allele_depths_long_annotated$family_member == "mother" &
+  Oct_Up_allele_depths_long_annotated$AAF > 0.05
+), ]$LOCUS
+
+
+# Identify loci where either parental AAF > 0.1
+Oct_up_remove <- Oct_Up_allele_depths_long_annotated[which(
+  Oct_Up_allele_depths_long_annotated$family_member %in% c("father", "mother") &
+  Oct_Up_allele_depths_long_annotated$AAF > 0.1
+), ]$LOCUS
+
+# Identify loci where either parental AAF > 0.05
+Oct_up_remove_AAFgt0.05 <- Oct_Up_allele_depths_long_annotated[which(
+  Oct_Up_allele_depths_long_annotated$family_member %in% c("father", "mother") &
+  Oct_Up_allele_depths_long_annotated$AAF > 0.05
+), ]$LOCUS
+
+
+# Remove duplicate loci from lists
+Oct_up_remove <- unique(Oct_up_remove)
+Oct_up_remove_AAFgt0.05 <- unique(Oct_up_remove_AAFgt0.05)
+
+Oct_Up_remove_dad <- unique(Oct_Up_remove_dad)
+Oct_Up_remove_dad_AAFgt0.05 <- unique(Oct_Up_remove_dad_AAFgt0.05)
+
+Oct_Up_remove_mom <- unique(Oct_Up_remove_mom)
+Oct_Up_remove_mom_AAFgt0.05 <- unique(Oct_Up_remove_mom_AAFgt0.05)
+
+Oct_Up_remove_sanity_check <- unique(c(Oct_Up_remove_mom, Oct_Up_remove_dad))
+Oct_Up_remove_sanity_check_AAFgt0.05 <- unique(c(Oct_Up_remove_mom_AAFgt0.05, Oct_Up_remove_dad_AAFgt0.05))
+
+Oct_up_sameNumRemovedMomDad <- all.equal(sort(Oct_up_remove), sort(Oct_Up_remove_sanity_check))
+Oct_up_sameNumRemovedMomDad_AAFgt0.05 <- all.equal(sort(Oct_up_remove_AAFgt0.05), sort(Oct_Up_remove_sanity_check_AAFgt0.05))
+
+
+# Store false positive results
+Oct_Up_those_to_remove <- Oct_Up_allele_depths_long_annotated[Oct_Up_allele_depths_long_annotated$LOCUS %in% Oct_up_remove, ]
+Oct_Up_those_to_remove_parents_only <- Oct_Up_those_to_remove %>% filter(family_member %in% c("father", "mother"))
+
+# Convert selected columns to numeric, removing NAs
+Oct_Up_allele_depths_long_annotated <- Oct_Up_allele_depths_long_annotated %>%
+  dplyr::mutate_at(c(8:15, 18, 20), as.numeric, na.rm = TRUE)
+
+# Filter the data based on specified criteria
+Oct_BASELINE_allele_depths_long_annotated_filtered_AAFgt0.1_DPgt5 <- Oct_Up_allele_depths_long_annotated %>%
+  filter(!LOCUS %in% Oct_up_remove) %>%
+  filter(!(AAF < 0.1)) %>%
+  filter(DP > 5)
+
+# Create a table with mutations in children only
+Oct_dnm_BASELINE_counts <- Oct_BASELINE_allele_depths_long_annotated_filtered_AAFgt0.1_DPgt5_No100716 %>%
+  dplyr::left_join(Oct_genome_coverage_all, by = "sample") %>%
+  dplyr::filter(family_member == "child") %>%
+  dplyr::semi_join(y = Oct_lfJoin_Up_validation, by = c("LOCUS", "sample", "REF", "ALT", "CHROM", "POS", "TYPE")) %>%
+  dplyr::distinct() %>%
+  dplyr::group_by(sample) %>%
+  dplyr::add_tally() %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(mutation_frequency = n / callable_regions)
+
+# Check the number of samples
+Oct_dnm_BASELINE_counts %>%
+  dplyr::group_by(sample) %>%
+  dplyr::tally() %>%
+  dplyr::summarise(sum(n))
+
+# Update total_dnm_calls column to numeric
+Oct_lfJoin_Up_validation$total_dnm_calls <- as.numeric(Oct_lfJoin_Up_validation$total_dnm_calls)
+
+# Perform left join for validation and baseline mutation counts
+Oct_validation_BASELINE_stats <- dplyr::left_join(Oct_lfJoin_Up_validation, Oct_dnm_BASELINE_counts)
+
+# Create a column 'validated' based on the presence of mutations
+Oct_validation_BASELINE_stats$validated <- ifelse(is.na(Oct_validation_BASELINE_stats$n), "N", "Y")
+
+# Check samples that are in validation but not in baseline
+Oct_lfJoin_Up_validation %>%
+  dplyr::anti_join(y = Oct_dnm_BASELINE_counts) %>%
+  dim()
+
+# Check samples that are in baseline but not in validation
+Oct_dnm_BASELINE_counts %>%
+  dplyr::anti_join(y = Oct_lfJoin_Up_validation) %>%
+  dim()
+
+# Apply the CreateAllFacet function to add 'facet' column
+Oct_validation_BASELINE_stats <- CreateAllFacet(Oct_validation_BASELINE_stats, "call_method")
+
+# Filter validated denovogear calls
+Oct_valid_dng <- Oct_validation_BASELINE_stats %>%
+  filter(facet == "denovogear") %>%
+  filter(validated == "Y")
+
+# Count denovogear calls per sample
+Oct_valid_dng %>% group_by(sample) %>% tally()
+
+# Filter validated GATK calls
+Oct_valid_gatk <- Oct_validation_BASELINE_stats %>%
+  filter(facet == "GATK") %>%
+  filter(validated == "Y")
+
+# Count GATK calls per sample
+Oct_valid_gatk %>% group_by(sample) %>% tally()
+
+# Count validated calls per sample
+Oct_validation_BASELINE_stats %>%
+  filter(validated == "Y") %>%
+  group_by(sample) %>%
+  tally()
+
+# Find overlapping calls between GATK and denovogear
+Oct_overlap_gatk <- semi_join(Oct_valid_gatk, Oct_valid_dng, by = "LOCUS")
+Oct_overlap_dng <- semi_join(Oct_valid_dng, Oct_valid_gatk, by = "LOCUS")
+
+# Find unmatched calls for denovogear and GATK
+Oct_unmatched_dng_calls <- anti_join(Oct_valid_dng, Oct_valid_gatk, by = "LOCUS")
+Oct_unmatched_gatk_calls <- anti_join(Oct_valid_gatk, Oct_valid_dng, by = "LOCUS")
+
+# Calculate the mean number of calls per sample
+Oct_dnm_BASELINE_counts %>%
+  group_by(sample) %>%
+  tally() %>%
+  summarise(n = mean(n))
+
+# Calculate the mean number of distinct calls per sample
+Oct_dnm_BASELINE_counts %>%
+  dplyr::distinct() %>%
+  group_by(sample) %>%
+  tally() %>%
+  summarise(n = mean(n))
+
+# Remove duplicates from Oct_dnm_BASELINE_counts
+Oct_dnm_BASELINE_counts <- Oct_dnm_BASELINE_counts %>%
+  dplyr::distinct()
+
+# Count the number of calls per sample after removing duplicates
+Oct_dnm_BASELINE_counts_per_sample <- Oct_dnm_BASELINE_counts %>%
+  group_by(sample) %>%
+  tally()
+
+# Final filtering
+Oct_dnm_count_AAFGt0.1DPGt05 %>%
+  filter(AAF > 0.1) %>%
+  filter(DP > 12) %>%
+  mutate(filter = "AAF>0.1 & DP>12") ->
+  Oct_dnm_count_AAFGt0.1DPGt12
