@@ -135,14 +135,14 @@ from SigProfilerAssignment import Analyzer as Analyze
 
 # Define paths and filenames
 SAMPLES_TXT_Iras_indiv = './IRAS_individual_SBS96.all'  # Replace with the actual path to your matrix file
-OUTPUT_TXT_Iras_indiv = "IRAS_indiv_Shamil_output/"  # Output folder name in the same folder
-new_signature_reformatted_shamil_sigdb = './Reformatted_Shamil_signature_db.txt'  # Germ cell file
+OUTPUT_TXT_Iras_indiv = "IRAS_indiv_humanGermline_output/"  # Output folder name in the same folder
+new_signature_reformatted_humanGermline_sigdb = './RefinedFormat_HumanGermlineSignatures_from_RawData.txt'  # Germ cell file
 
 # Run the analysis
 Analyze.cosmic_fit(
     SAMPLES_TXT_Iras_indiv,
     OUTPUT_TXT_Iras_indiv,
-    signature_database=new_signature_reformatted_shamil_sigdb,
+    signature_database=new_signature_reformatted_humanGermline_sigdb,
     genome_build="GRCh38",
     verbose=False,
     collapse_to_SBS96=False,
