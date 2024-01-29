@@ -1,0 +1,19 @@
+#######################
+References:
+#######################
+**SigProfilerMatrixGenerator**
+- [GitHub Repository](https://github.com/AlexandrovLab/SigProfilerMatrixGenerator)
+- [Wiki](https://osf.io/s93d5/wiki/home/)
+
+**SigProfilerExtractor**
+- [Recent Paper](https://www.cell.com/cell-genomics/pdf/S2666-979X(22)00124-0.pdf)
+- [GitHub Repository](https://github.com/AlexandrovLab/SigProfilerExtractor)
+
+**SigProfilerAssignment**
+- [GitHub Repository](https://github.com/AlexandrovLab/SigProfilerAssignment)
+- [Python Version](https://osf.io/t6j7u/)
+
+**Germ Cells Signature:**
+- Original file: [TOPMed_10kb_spectra_sdnorm.txt](http://pklab.med.harvard.edu/ruslan/spacemut/tracks_update/TOPMed_10kb_spectra_sdnorm.txt)
+- **Reformatted File for Analysis:** [Reformatted_Shamil_signature_db.txt](your_repository_link/Reformatted_Shamil_signature_db.txt)
+  (Make sure to replace "your_repository_link" with the actual link to the file in your repository.)
