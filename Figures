@@ -1,0 +1,157 @@
+library(ggalt)
+library(ggplot2)
+
+
+#######################
+Figure 2
+#######################
+
+ggplot(Oct_dnm_count_AAFGt0.1DPGt12,
+       aes(x = paternal_age_at_birth, y = n)) +
+    geom_smooth(method = "glm",
+                formula = y ~ x,
+                color = "red",
+                level = .95, se = FALSE) +
+    geom_point(size = 5, aes(colour = as.factor(Oct_dnm_count_AAFGt0.1DPGt12$family))) + 
+    geom_point(size = 5, colour = "black", shape = 1) +
+    theme_classic() +
+    theme(
+        axis.line = element_line(colour = "black", size = 1, linetype = "solid"),
+        legend.title = element_text(size = 20, face = "bold"),
+        legend.text = element_text(size = 15),
+        legend.position = c(0.92, 0.25),
+        legend.key = element_rect(fill = "lightyellow", color = "black"),
+        panel.border = element_blank(),
+        plot.title = element_text(size = 25, face = "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(face = "bold", size = 18, colour = "black"),
+        axis.text.y = element_text(face = "bold", size = 18, colour = "black"),
+        axis.title.x = element_text(size = 18, face = "bold", colour = "black"),    
+        axis.title.y = element_text(size = 18, face = "bold", colour = "black"),
+        strip.text = element_text(size = 10, face = "bold")
+    ) +
+    ggtitle("Paternal age effect on the total number of validated DNMs") +
+    ylab("Number of autosomal DNMs") +
+    labs(caption = "Each dot represents a proband and each color represents an IRAS family.\nOverall, 48 probands from 13 IRAS families.") +
+    xlab("Father's age at birth (years)") +
+    scale_x_continuous(breaks = seq(14, 46, 2)) +
+    scale_y_continuous(breaks = seq(0, 80, 5)) +
+    labs(colour = "IRAS families", face = "bold")
+
+########### Calculate the R2
+# Fit a linear mixed model
+lmer_con_int_all13_Iras_48probands <- lmer(n ~ paternal_age_at_birth + (1 | family), con_int_all13_Iras_48probands)
+
+# Display summary of the model
+summary(lmer_con_int_all13_Iras_48probands)
+
+# Estimate fixed effects and store in 'slope'
+slope <- as.data.frame(esticon(lmer_con_int_all13_Iras_48probands, lambda))
+
+# Display profile confidence intervals
+confint_result <- confint(lmer_con_int_all13_Iras_48probands, level = 0.95)
+print("Profile Confidence Intervals:")
+print(confint_result)
+
+
+#######################
+Figure 3
+#######################
+# Plotting the slope of each IRAS family with 95% CI
+IRAS_dumbel <- ggplot(data = IRAS_slope) +
+  geom_vline(xintercept = 1.1, linetype = "dashed", color = "grey", size = 1.5) +
+  geom_dumbbell(
+    data = IRAS_slope,
+    aes(y = reorder(family, -slope_PA), x = con_2.5, xend = con_97.5),
+    size_xend = 3, size_x = 3, colour = "#a3c4dc", size = 3, colour_x = "#5b8124", colour_xend = "#5b8124"
+  ) +
+  theme_classic() +
+  geom_dumbbell(
+    data = IRAS_slope,
+    aes(y = reorder(family, -slope_PA), x = con_2.5, xend = con_97.5),
+    size_xend = 3, size_x = 3, colour = "black", shape = 1
+  ) +
+  geom_point(
+    data = IRAS_slope,
+    aes(x = slope_PA, y = reorder(family, -slope_PA)),
+    size = 5, colour = "green"
+  ) +
+  geom_point(
+    data = IRAS_slope,
+    aes(x = slope_PA, y = reorder(family, -slope_PA)),
+    colour = "black", shape = 1, size = 5
+  ) +
+  theme(
+    strip.background = element_blank(),
+    axis.line = element_line(size = 6, linetype = "solid", colour = "black"),
+    axis.ticks = element_line(size = 6, linetype = "solid", colour = "black"),
+    axis.ticks.length = unit(12, "pt")
+  ) +
+  coord_fixed(ratio = 1/2) +
+  xlab(" Additional DNMs/year of paternal age (slope) +/- 95% CI") +
+  ylab("Family ID") +
+  geom_dumbbell(
+    data = IRAS_slope %>% filter(family == "2030_10"),
+    aes(y = reorder(family, -slope_PA), x = con_2.5, xend = con_97.5),
+    size_xend = 3, size_x = 3, colour = "blue"
+  ) +
+  theme_classic() +
+  geom_dumbbell(
+    data = IRAS_slope %>% filter(family == "2030_10"),
+    aes(y = reorder(family, -slope_PA), x = con_2.5, xend = con_97.5),
+    size_xend = 3, size_x = 3, colour = "blue", shape = 1
+  ) +
+  geom_point(
+    data = IRAS_slope %>% filter(family == "2030_10"),
+    aes(x = slope_PA, y = reorder(family, -slope_PA)),
+    size = 5, colour = "blue"
+  ) +
+  geom_dumbbell(
+    data = IRAS_slope %>% filter(family == "2011_34"),
+    aes(y = reorder(family, -slope_PA), x = con_2.5, xend = con_97.5),
+    size_xend = 3, size_x = 3, colour = "red"
+  ) +
+  theme_classic() +
+  geom_dumbbell(
+    data = IRAS_slope %>% filter(family == "2011_34"),
+    aes(y = reorder(family, -slope_PA), x = con_2.5, xend = con_97.5),
+    size_xend = 3, size_x = 3, colour = "red", shape = 1
+  ) +
+  geom_point(
+    data = IRAS_slope %>% filter(family == "2011_34"),
+    aes(x = slope_PA, y = reorder(family, -slope_PA)),
+    size = 5, colour = "red"
+  ) +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(face = "bold", size = 18, colour = "black"),
+    axis.text.y = element_text(face = "bold", size = 18, colour = "black"),
+    axis.title.x = element_text(size = 20, face = "bold", colour = "black"),
+    axis.title.y = element_text(size = 25, face = "bold", colour = "black"),
+    strip.text = element_text(size = 20, face = "bold")
+  ) +
+  labs(
+    caption = "A dashed grey line indicates the overall paternal age effect\n(1.1; 95% CI: 0.79–1.42, p<5.81e-11; estimated using all samples)."
+  ) +
+  ggtitle(
+    "Plotted slope +/- 95% CI of each IRAS family fitted separately with\npoisson regression (predicting autosomal DNMs as a function of paternal age)",
+    subtitle = "Families are sorted in order of increasing slope."
+  ) +
+  theme(
+    aspect.ratio = 1.5,
+    plot.title = element_text(size = 16.5, face = "bold"),
+    plot.subtitle = element_text(size = 16, face = "italic"),
+    plot.caption = element_text(size = 16, face = "italic")
+  ) +
+  xlim(-2, 8)
+
+# Save the plot
+ggsave(filename = "Figure3_slope.png", plot = IRAS_dumbel, height = 16, width = 13, units = "in")
+
+
+#######################
+Figure 6
+#######################
