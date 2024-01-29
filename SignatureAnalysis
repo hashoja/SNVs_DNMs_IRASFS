@@ -15,5 +15,140 @@ References:
 
 **Germ Cells Signature:**
 - Original file: [TOPMed_10kb_spectra_sdnorm.txt](http://pklab.med.harvard.edu/ruslan/spacemut/tracks_update/TOPMed_10kb_spectra_sdnorm.txt)
-- **Reformatted File for Analysis:** [Reformatted_Shamil_signature_db.txt]
+- **Reformatted File for Analysis:** RefinedFormat_HumanGermlineSignatures_from_RawData.txt]
   
+################
+# Install required R packages
+install.packages(c("devtools", "reticulate"))
+
+# Load R packages
+library(devtools)
+library(reticulate)
+
+# Set the path to your Python3 interpreter
+use_python("path_to_your_python3")
+
+# Check Python configuration
+py_config()
+
+# Install SigProfilerMatrixGeneratorR from GitHub
+install_github("AlexandrovLab/SigProfilerMatrixGeneratorR")
+
+# Install the reference genome (replace 'GRCh38' with your desired genome, e.g., 'mm10')
+SigProfilerMatrixGeneratorR::install('GRCh38', rsync = FALSE, bash = TRUE)
+#######################
+
+Working with SigProfiler Tools: General Steps
+
+Data Formatting:
+
+Begin by formatting your VCF file, Mute file, or any relevant data file to the <input type format> compatible and accepted by SigProfilerMatrixGenerator.
+Matrix Generation:
+
+Utilize SigProfilerMatrixGenerator to generate a matrix based on your formatted input data.
+Tool Utilization:
+
+Use the generated matrix from the second step as input for either:
+<SigProfilerExtractor> for specific analyses.
+<SigProfilerAssignment> for more general applications.
+These steps provide a streamlined workflow for leveraging SigProfiler tools in your mutation signature analyses.
+
+#################
+
+# First Step: Formatting Your File
+# 1. Convert Data to Desired Output Format
+# Example of formatting data in R
+sigpro_indiv <- Oct_dnm_count_AAFGt0.1DPGt12[, c(7, 1, 2, 2, 3, 4)]
+
+# Project information
+sigpro_indiv$Project <- "IRAS"   # Name of your project
+sigpro_indiv$Genome <- "GRCh38"  # Name of reference genome (e.g., "GRCh38" or "mm10")
+sigpro_indiv$mut_type <- "SNP"    # Use "SNP" for SNPs, modify as needed
+sigpro_indiv$Type <- "GERMLINE"  # Type of mutation (e.g., "GERMLINE")
+
+# ID field
+sigpro_indiv$ID <- "."
+
+# Reorder and select columns
+sigpro_indiv <- sigpro_indiv[, c(7, 1, 11, 8, 9, 2, 3:6, 10)]
+names(sigpro_indiv) <- c("Project", "Sample", "ID", "Genome", "mut_type", "chrom", "pos_start", "pos_end", "ref", "alt", "Type")
+
+# Write in Tab-Delimited Format
+# Write to tab-delimited file
+write.table(sigpro_indiv, file = "path/to/your/folder/sigpro_formatted_data.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+##############
+Running SigProfilerMatrixGeneratorR
+To run SigProfilerMatrixGeneratorR for  IRAS project:
+
+# Load SigProfilerMatrixGeneratorR library
+library(SigProfilerMatrixGeneratorR)
+
+# Define parameters
+project_name <- "IRAS"   # Project name
+ref_genome <- "GRCh38"   # Reference genome, ensure it's already downloaded
+input_folder <- "path/to/iras_sigpro_indiv/"  # Path to the input folder (not the file)
+plot_results <- TRUE      # Set to TRUE to generate plots
+exome_data <- FALSE       # Set to TRUE if using exome data
+bed_file <- NULL          # Path to a BED file if using, otherwise set to NULL
+chrom_based <- FALSE      # Set to TRUE for chromosomal-based analysis
+tsb_stat <- FALSE         # Set to TRUE to include TSB statistics
+seqInfo <- FALSE          # Set to TRUE to include sequence information
+cushion <- 100            # Cushion parameter
+
+# Run SigProfilerMatrixGeneratorR
+iras_matrices_indiv <- SigProfilerMatrixGeneratorR(
+  project_name, ref_genome, input_folder,
+  plot = plot_results, exome = exome_data, bed_file = bed_file,
+  chrom_based = chrom_based, tsb_stat = tsb_stat,
+  seqInfo = seqInfo, cushion = cushion
+)
+############
+# running SigProfilerExtractor:
+
+# Navigate to the directory where you have the SigProfilerMatrixGeneratorR output
+cd path/to/output/SBS/
+
+# Run SigProfilerExtractor in python environment
+python
+
+# Inside the python environment
+from SigProfilerExtractor import sigpro as sig
+
+# Define the path to the SigProfilerMatrixGeneratorR output (SBS96.all file)
+data_path = "path/to/output/SBS/IRAS.SBS96.all"
+
+# Run SigProfilerExtractor
+sig.sigProfilerExtractor(
+    "matrix",
+    "results_irasf",
+    data_path,
+    reference_genome="GRCh38",
+    minimum_signatures=1,
+    maximum_signatures=10,
+    nmf_replicates=100
+)
+
+#########
+
+import os
+from SigProfilerAssignment import Analyzer as Analyze
+
+# Define paths and filenames
+SAMPLES_TXT_Iras_indiv = './IRAS_individual_SBS96.all'  # Replace with the actual path to your matrix file
+OUTPUT_TXT_Iras_indiv = "IRAS_indiv_Shamil_output/"  # Output folder name in the same folder
+new_signature_reformatted_shamil_sigdb = './Reformatted_Shamil_signature_db.txt'  # Germ cell file
+
+# Run the analysis
+Analyze.cosmic_fit(
+    SAMPLES_TXT_Iras_indiv,
+    OUTPUT_TXT_Iras_indiv,
+    signature_database=new_signature_reformatted_shamil_sigdb,
+    genome_build="GRCh38",
+    verbose=False,
+    collapse_to_SBS96=False,
+    make_plots=True,
+    exome=False
+)
+
+
+
