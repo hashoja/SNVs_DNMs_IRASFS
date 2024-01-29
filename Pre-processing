@@ -23,12 +23,12 @@ Import denovogear & GATK candiate DNMs
 ####################
 # Importing validation data from De Novo Gear (DNG) and GATK callsets
 Oct_dng_validation <- read.table(
-  "~/nfs/projects/2020_IRAS_validation/11_manual_validation/original_callset/dng/master_DNG_list.txt",
+  "/path/to/master_DNG_list.txt",
   header = FALSE, sep = "\t", stringsAsFactors = FALSE
 )
 
 Oct_gatk_validation <- read.table(
-  "~/nfs/projects/2020_IRAS_validation/11_manual_validation/original_callset/gatk/master_GATK_list.txt",
+  "/path/to/master_GATK_list.txt",
   header = FALSE, sep = "\t", stringsAsFactors = FALSE
 )
 
@@ -55,15 +55,15 @@ Oct_validation$sample <- as.character(Oct_validation$sample)
 
 # Reading genome coverage data for somatic, X, and Y chromosomes
 Oct_genome_coverage_somatic <- read.table(
-  "/mnt/nfs1/mmeier/data/2020_IRAS_validation/depth_calculations.min.10.reads.mq.20/summary.somatic.txt"
+  "/path/to/summary.somatic.txt"
 )
 
 Oct_genome_coverage_x <- read.table(
-  "/mnt/nfs1/mmeier/data/2020_IRAS_validation/depth_calculations.min.10.reads.mq.20/summary.x.txt"
+  "/path/to/summary.x.txt"
 )
 
 Oct_genome_coverage_y <- read.table(
-  "/mnt/nfs1/mmeier/data/2020_IRAS_validation/depth_calculations.min.10.reads.mq.20/summary.y.txt"
+  "/path/to/summary.y.txt"
 )
 
 # Naming columns for clarity
@@ -95,7 +95,7 @@ Oct_genome_coverage_all$sample <- as.character(Oct_genome_coverage_all$sample)
 
 # Reading in sample data from a file
 Oct_Up_IRAS_sampledata <- read.table(
-  "~/nfs/projects/2020_IRAS_validation/habib_manual_validation/sampledata_updated_HS.txt",
+  "/path/to/sampledata_updated_HS.txt",
   header = TRUE, sep = "\t", stringsAsFactors = FALSE
 )
 
@@ -122,7 +122,7 @@ Oct_lfJoin_Up_validation <- dplyr::left_join(Oct_validation, Oct_Up_IRAS_sampled
 
 # Read in pileup data for validation regions with the NEW and corrected Targeted sequences (TS)
 Oct_allele_depths <- read.table(
-  "~/nfs/projects/2020_IRAS_validation/habib_manual_validation/habib_merged.validation_positions.table",
+  "/path/to/merged.validation_positions.table",
   header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
 )
 
